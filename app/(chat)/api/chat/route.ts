@@ -35,6 +35,7 @@ export async function POST(request: Request) {
 
   // İlk adım: Kullanıcının mesajını al ve API'den veriyi çek
   const lastMessageContent = coreMessages[coreMessages.length - 1]?.content;
+  let searchResults = '';
 
   // Eğer lastMessageContent bir dizi ise, string'e dönüştürüyoruz
   const userMessage = Array.isArray(lastMessageContent)
