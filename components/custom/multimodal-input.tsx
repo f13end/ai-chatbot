@@ -23,7 +23,7 @@ const suggestedActions = [
   {
     title: "Which one is Better Player in 2024",
     label: "Messi or Ronaldo?",
-    action: "Which one is Better Player in 2024, Messi or Ronaldo?",
+    action: "Which one is Better Player in 2024, Messi or Ronaldo? specific metrics all data value—goals, assists etc..",
   },
   {
     title: "How team lineups develop?",
