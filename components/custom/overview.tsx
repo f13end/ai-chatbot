@@ -23,18 +23,7 @@ export const Overview = () => {
         It also simulates scouting, transfers, and press conferences to create a realistic and immersive football experience.
 
         </p>
-        <p>
-          {" "}
-          You can learn more about the AI SDK by visiting the{" "}
-          <Link
-            className="text-blue-500 dark:text-blue-400"
-            href="https://sdk.vercel.ai/docs"
-            target="_blank"
-          >
-            Docs
-          </Link>
-          .
-        </p>
+  
       </div>
     </motion.div>
   );
