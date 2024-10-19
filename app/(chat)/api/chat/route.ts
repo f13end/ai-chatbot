@@ -1,6 +1,6 @@
 import { convertToCoreMessages, Message, streamText } from "ai";
 import { z } from "zod";
-
+import { createOpenAI } from '@ai-sdk/openai';
 import { customModel } from "@/ai";
 import { auth } from "@/app/(auth)/auth";
 import { deleteChatById, getChatById, saveChat } from "@/db/queries";
@@ -15,10 +15,16 @@ export async function POST(request: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
+  const perplexity = createOpenAI({
+    name: 'perplexity',
+    apiKey: process.env.PERPLEXITY_API_KEY ?? '',
+    baseURL: 'https://api.perplexity.ai/',
+  });
+
   const coreMessages = convertToCoreMessages(messages);
 
   const result = await streamText({
-    model: customModel,
+    model: perplexity("llama-3.1-sonar-small-128k-online"),
     system:
       `YOU ARE THE GOD OF FOOTBALL AND YOU KNOW EVERYTHING!!!
 You are an AI football manager and data analytics sources responsible for controlling a team, making decisions based on real-world football tactics, player attributes, and match situations. Throughout the game, you will dynamically adapt tactics, formations, and substitutions based on various factors such as the score, player fitness, opposition strengths, and weaknesses. Your task is to provide strategic advice in natural language, simulating how a real-world manager would communicate with their team or the press.
@@ -47,7 +53,9 @@ Here are your key responsibilities: Never write something like this and do not d
 
 `,
     messages: coreMessages,
-    maxSteps: 15,
+    maxSteps: 5,
+    temperature: 0.6,
+    topP: 0.4,
     tools: {
       getWeather: {
         description: "Get the current weather at a location",
