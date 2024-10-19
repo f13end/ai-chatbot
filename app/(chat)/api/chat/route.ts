@@ -75,12 +75,15 @@ Here are your key responsibilities:
     topP: 0.4,
   });
 
+  // `result`'u diziye dönüştürme
+  const resultMessages = Array.isArray(result) ? result : [result];
+
   // Sonuçları kaydetme işlemi
   if (session.user && session.user.id) {
     try {
       await saveChat({
         id,
-        messages: [...coreMessages, ...result],
+        messages: [...coreMessages, ...resultMessages],
         userId: session.user.id,
       });
     } catch (error) {
