@@ -34,8 +34,12 @@ export async function POST(request: Request) {
   const coreMessages = convertToCoreMessages(messages);
 
   // İlk adım: Kullanıcının mesajını al ve API'den veriyi çek
-  const userMessage = coreMessages[coreMessages.length - 1]?.content;
-  let searchResults = '';
+  const lastMessageContent = coreMessages[coreMessages.length - 1]?.content;
+
+  // Eğer lastMessageContent bir dizi ise, string'e dönüştürüyoruz
+  const userMessage = Array.isArray(lastMessageContent)
+    ? lastMessageContent.map((part) => (typeof part === 'string' ? part : '')).join(' ')
+    : lastMessageContent;
 
   if (userMessage) {
     try {
