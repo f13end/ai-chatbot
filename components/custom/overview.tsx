@@ -14,18 +14,14 @@ export const Overview = () => {
       transition={{ delay: 0.5 }}
     >
       <div className="border rounded-lg p-6 flex flex-col gap-4 text-zinc-500 text-sm dark:text-zinc-400 dark:border-zinc-700">
-        <p className="flex flex-row justify-center gap-4 items-center text-zinc-900 dark:text-zinc-50">
-          <VercelIcon />
-          <span>+</span>
-          <MessageIcon />
-        </p>
+    
         <p>
-          This is an open source Chatbot template built with Next.js and the AI
-          SDK by Vercel. It uses the{" "}
-          <code className="rounded-md bg-muted px-1 py-0.5">streamText</code>{" "}
-          function in the server and the{" "}
-          <code className="rounded-md bg-muted px-1 py-0.5">useChat</code> hook
-          on the client to create a seamless chat experience.
+        This is a football AI manager built using cutting-edge technology. 
+        It analyzes real-time match data, dynamically adjusting tactics and providing strategic insights. 
+        Utilizing player attributes and match situations, 
+        the AI makes decisions that mirror real-world football management. 
+        It also simulates scouting, transfers, and press conferences to create a realistic and immersive football experience.
+
         </p>
         <p>
           {" "}

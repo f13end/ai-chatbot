@@ -21,14 +21,14 @@ import { Textarea } from "../ui/textarea";
 
 const suggestedActions = [
   {
-    title: "What is the weather",
-    label: "in San Francisco?",
-    action: "What is the weather in San Francisco?",
+    title: "Which one is Better Player in 2024",
+    label: "Messi or Ronaldo?",
+    action: "Which one is Better Player in 2024, Messi or Ronaldo?",
   },
   {
-    title: "Answer like I'm 5,",
-    label: "why is the sky blue?",
-    action: "Answer like I'm 5, why is the sky blue?",
+    title: "How team lineups develop?",
+    label: "Like Angelotti?",
+    action: "How to line up my team like Angelotti?",
   },
 ];
 
