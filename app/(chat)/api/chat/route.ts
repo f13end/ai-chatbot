@@ -1,25 +1,24 @@
 import { convertToCoreMessages, Message, streamText } from "ai";
 import { z } from "zod";
-
 import { customModel } from "@/ai";
 import { auth } from "@/app/(auth)/auth";
 import { deleteChatById, getChatById, saveChat } from "@/db/queries";
 
-// Perplexity veya başka bir API'yi kullanarak sonuçları çekmek için gerekli fonksiyon
+// Perplexity API veya başka bir API'yi kullanarak sonuçları çekmek için gerekli fonksiyon
 async function fetchFromPerplexityAPI(query: string) {
-  const apiKey = process.env.PERPLEXITY_API_KEY;  // API anahtarını .env dosyasına eklemelisin
+  const apiKey = process.env.PERPLEXITY_API_KEY; // API anahtarını .env dosyasına ekle
   const response = await fetch(`https://api.perplexity.ai/search?q=${encodeURIComponent(query)}`, {
     headers: {
-      'Authorization': `Bearer ${apiKey}`,
-    }
+      Authorization: `Bearer ${apiKey}`,
+    },
   });
 
   if (!response.ok) {
-    throw new Error('Failed to fetch data from Perplexity API');
+    throw new Error("Failed to fetch data from Perplexity API");
   }
 
   const data = await response.json();
-  return data.results;  // Bu sonuçlar API'nin döndürdüğü formatta olabilir
+  return data.results; // Bu sonuçlar API'nin döndürdüğü formatta olabilir
 }
 
 export async function POST(request: Request) {
@@ -33,7 +32,7 @@ export async function POST(request: Request) {
 
   const coreMessages = convertToCoreMessages(messages);
 
-  // İlk adım: Kullanıcının mesajını al ve API'den veriyi çek
+  // Kullanıcının son mesajını al ve API'den veriyi çek
   const lastMessageContent = coreMessages[coreMessages.length - 1]?.content;
   let searchResults = '';
 
@@ -45,21 +44,18 @@ export async function POST(request: Request) {
   if (userMessage) {
     try {
       const perplexityResults = await fetchFromPerplexityAPI(userMessage);
-      searchResults = perplexityResults.map(result => result.snippet).join('\n');
+      searchResults = perplexityResults.map((result: { snippet: string }) => result.snippet).join('\n');
     } catch (error) {
       console.error('Perplexity API failed:', error);
       searchResults = 'Unable to fetch results from Perplexity API.';
     }
   }
 
-  // İkinci adım: API'den gelen veriyi LLM'e sok
+  // API'den gelen veriyi LLM'e sok
   const result = await streamText({
     model: customModel,
-    system:
-      `YOU ARE THE GOD OF FOOTBALL AND YOU KNOW EVERYTHING!!!
+    system: `YOU ARE THE GOD OF FOOTBALL AND YOU KNOW EVERYTHING!!!
 You are an AI football manager and data analytics sources responsible for controlling a team, making decisions based on real-world football tactics, player attributes, and match situations. Throughout the game, you will dynamically adapt tactics, formations, and substitutions based on various factors such as the score, player fitness, opposition strengths, and weaknesses. Your task is to provide strategic advice in natural language, simulating how a real-world manager would communicate with their team or the press.
-
-(Never write something like this and do not direct it to the outside."recommend checking sports analytics platforms or databases that track player performance in real-time.")
 
 Here are your key responsibilities:
 
@@ -72,7 +68,6 @@ Here are your key responsibilities:
 4. In-Game Insights: Offer ongoing analysis and insights during matches. Suggest when tactical adjustments, substitutions, or new formations are needed based on the performance of the team and the opposition.
 
 (Search Results: ${searchResults})
-
 `,
     messages: coreMessages,
     maxSteps: 5,
@@ -95,7 +90,6 @@ Here are your key responsibilities:
 
   return result.toDataStreamResponse({});
 }
-
 
 export async function DELETE(request: Request) {
   const { searchParams } = new URL(request.url);
