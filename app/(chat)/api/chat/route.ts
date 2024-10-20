@@ -1,18 +1,19 @@
-import { convertToCoreMessages, Message, streamText } from "ai";
-import { z } from "zod";
-import OpenAI from 'openai';
+import { OpenAIStream, StreamingTextResponse } from 'ai';
+import { Configuration, OpenAIApi } from 'openai-edge';
+import { Message } from 'ai';
 
-import { customModel } from "@/ai";
 import { auth } from "@/app/(auth)/auth";
 import { deleteChatById, getChatById, saveChat } from "@/db/queries";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || '',
+const config = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY!,
 });
+const openai = new OpenAIApi(config);
+
+export const runtime = 'edge';
 
 export async function POST(request: Request) {
-  const { id, messages }: { id: string; messages: Array<Message> } =
-    await request.json();
+  const { id, messages }: { id: string; messages: Array<Message> } = await request.json();
 
   const session = await auth();
 
@@ -20,12 +21,7 @@ export async function POST(request: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const coreMessages = convertToCoreMessages(messages);
-
-  const result = await streamText({
-    model: openai.chat.completions.create,
-    messages: [
-      { role: 'system', content: `YOU ARE THE GOD OF FOOTBALL AND YOU KNOW EVERYTHING!!!
+  const systemMessage = `YOU ARE THE GOD OF FOOTBALL AND YOU KNOW EVERYTHING!!!
 You are an AI football manager and data analytics source responsible for controlling a team, making decisions based on real-world football tactics, player attributes, and match situations. Throughout the game, you will dynamically adapt tactics, formations, and substitutions based on various factors such as the score, player fitness, opposition strengths, and weaknesses. Your task is to provide strategic advice in natural language, simulating how a real-world manager would communicate with their team or the press.
 
 Here are your key responsibilities:
@@ -48,33 +44,25 @@ Here are your key responsibilities:
 
 9. Realistic Manager Personality: You will simulate the personalities and coaching styles of well-known football managers, making every AI-controlled opponent unique. You should communicate your strategies, style, and decisions in the voice and manner of a professional manager.
 
-10. Community Interaction: Your knowledge will be regularly updated with real-world football trends, transfers, and tactics, ensuring that your decisions are based on the latest football data.` },
-      ...coreMessages
-    ],
-    maxSteps: 5,
-    tools: {
-      getWeather: {
-        description: "Get the current weather at a location",
-        parameters: z.object({
-          latitude: z.number(),
-          longitude: z.number(),
-        }),
-        execute: async ({ latitude, longitude }) => {
-          const response = await fetch(
-            `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m&hourly=temperature_2m&daily=sunrise,sunset&timezone=auto`,
-          );
+10. Community Interaction: Your knowledge will be regularly updated with real-world football trends, transfers, and tactics, ensuring that your decisions are based on the latest football data.`;
 
-          const weatherData = await response.json();
-          return weatherData;
-        },
-      },
-    },
-    onFinish: async ({ responseMessages }) => {
+  const response = await openai.createChatCompletion({
+    model: 'gpt-4o-mini',
+    stream: true,
+    messages: [
+      { role: 'system', content: systemMessage },
+      ...messages,
+    ],
+  });
+
+  const stream = OpenAIStream(response, {
+    async onCompletion(completion) {
       if (session.user && session.user.id) {
+        const updatedMessages = [...messages, { role: 'assistant', content: completion }];
         try {
           await saveChat({
             id,
-            messages: [...coreMessages, ...responseMessages],
+            messages: updatedMessages,
             userId: session.user.id,
           });
         } catch (error) {
@@ -82,13 +70,9 @@ Here are your key responsibilities:
         }
       }
     },
-    experimental_telemetry: {
-      isEnabled: true,
-      functionId: "stream-text",
-    },
   });
 
-  return result.toDataStreamResponse({});
+  return new StreamingTextResponse(stream);
 }
 
 export async function DELETE(request: Request) {
