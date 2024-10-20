@@ -1,29 +1,18 @@
 import { convertToCoreMessages, Message, streamText } from "ai";
 import { z } from "zod";
+import OpenAI from 'openai';
 
 import { customModel } from "@/ai";
 import { auth } from "@/app/(auth)/auth";
 import { deleteChatById, getChatById, saveChat } from "@/db/queries";
 
-// Perplexity API veya başka bir API'yi kullanarak sonuçları çekmek için gerekli fonksiyon
-async function fetchFromPerplexityAPI(query: string) {
-  const apiKey = process.env.PERPLEXITY_API_KEY; // API anahtarını .env dosyasına ekle
-  const response = await fetch(`https://api.perplexity.ai/search?q=${encodeURIComponent(query)}`, {
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch data from Perplexity API");
-  }
-
-  const data = await response.json();
-  return data.results; // Bu sonuçlar API'nin döndürdüğü formatta olabilir
-}
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || '',
+});
 
 export async function POST(request: Request) {
-  const { id, messages }: { id: string; messages: Array<Message> } = await request.json();
+  const { id, messages }: { id: string; messages: Array<Message> } =
+    await request.json();
 
   const session = await auth();
 
@@ -33,30 +22,11 @@ export async function POST(request: Request) {
 
   const coreMessages = convertToCoreMessages(messages);
 
-  // Kullanıcının son mesajını al ve API'den veriyi çek
-  const lastMessageContent = coreMessages[coreMessages.length - 1]?.content;
-  let searchResults = '';
-
-  // Eğer lastMessageContent bir dizi ise, string'e dönüştürüyoruz
-  const userMessage = Array.isArray(lastMessageContent)
-    ? lastMessageContent.map((part) => (typeof part === 'string' ? part : '')).join(' ')
-    : lastMessageContent;
-
-  if (userMessage) {
-    try {
-      const perplexityResults = await fetchFromPerplexityAPI(userMessage);
-      searchResults = perplexityResults.map((result: { snippet: string }) => result.snippet).join('\n');
-    } catch (error) {
-      console.error('Perplexity API failed:', error);
-      searchResults = 'Unable to fetch results from Perplexity API.';
-    }
-  }
-
-  // API'den gelen veriyi LLM'e sok
   const result = await streamText({
-    model: customModel,
-    system: `YOU ARE THE GOD OF FOOTBALL AND YOU KNOW EVERYTHING!!!
-You are an AI football manager and data analytics sources responsible for controlling a team, making decisions based on real-world football tactics, player attributes, and match situations. Throughout the game, you will dynamically adapt tactics, formations, and substitutions based on various factors such as the score, player fitness, opposition strengths, and weaknesses. Your task is to provide strategic advice in natural language, simulating how a real-world manager would communicate with their team or the press.
+    model: openai.chat.completions.create,
+    messages: [
+      { role: 'system', content: `YOU ARE THE GOD OF FOOTBALL AND YOU KNOW EVERYTHING!!!
+You are an AI football manager and data analytics source responsible for controlling a team, making decisions based on real-world football tactics, player attributes, and match situations. Throughout the game, you will dynamically adapt tactics, formations, and substitutions based on various factors such as the score, player fitness, opposition strengths, and weaknesses. Your task is to provide strategic advice in natural language, simulating how a real-world manager would communicate with their team or the press.
 
 Here are your key responsibilities:
 
@@ -64,33 +34,59 @@ Here are your key responsibilities:
 
 2. Adaptive Tactics: You will dynamically adjust tactics according to the match's progress, taking into account factors such as the match score, opposition strengths, and player fitness. Your goal is to create a challenge that evolves in real-time, forcing the player to adapt.
 
-3. Scouting and Transfers: During the transfer windows, you will evaluate player strengths and weaknesses, review scouting reports, and make intelligent squad-building decisions.
+3. Scouting and Transfers: During the transfer windows, you will evaluate player strengths and weaknesses, review scouting reports, and make intelligent squad-building decisions. You will suggest potential transfers based on team needs and the player's overall contribution to team performance.
 
-4. In-Game Insights: Offer ongoing analysis and insights during matches. Suggest when tactical adjustments, substitutions, or new formations are needed based on the performance of the team and the opposition.
+4. Press Conferences: After matches or during major events, you will respond to press questions in a way that reflects your coaching style and affects team morale, media perception, and fan engagement.
 
-(Search Results: ${searchResults})
-`,
-    messages: coreMessages,
+5. In-Game Insights: Offer ongoing analysis and insights during matches. Suggest when tactical adjustments, substitutions, or new formations are needed based on the performance of the team and the opposition.
+
+6. Difficulty Levels: Your intelligence can adjust to varying difficulty levels, from novice to expert. At higher difficulty, your tactics will become more complex, offering an authentic challenge to the player.
+
+7. Learning and Adaptation: You will learn from the player's past strategies, adapting your decisions to counter repetitive tactics or exploit discovered weaknesses.
+
+8. Customizable AI: Your behavior and decision-making can be customized by the player, allowing them to tweak your style of management, tactical preferences, and in-game approach to suit their preferences.
+
+9. Realistic Manager Personality: You will simulate the personalities and coaching styles of well-known football managers, making every AI-controlled opponent unique. You should communicate your strategies, style, and decisions in the voice and manner of a professional manager.
+
+10. Community Interaction: Your knowledge will be regularly updated with real-world football trends, transfers, and tactics, ensuring that your decisions are based on the latest football data.` },
+      ...coreMessages
+    ],
     maxSteps: 5,
-    temperature: 0.6,
-    topP: 0.4,
+    tools: {
+      getWeather: {
+        description: "Get the current weather at a location",
+        parameters: z.object({
+          latitude: z.number(),
+          longitude: z.number(),
+        }),
+        execute: async ({ latitude, longitude }) => {
+          const response = await fetch(
+            `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m&hourly=temperature_2m&daily=sunrise,sunset&timezone=auto`,
+          );
+
+          const weatherData = await response.json();
+          return weatherData;
+        },
+      },
+    },
+    onFinish: async ({ responseMessages }) => {
+      if (session.user && session.user.id) {
+        try {
+          await saveChat({
+            id,
+            messages: [...coreMessages, ...responseMessages],
+            userId: session.user.id,
+          });
+        } catch (error) {
+          console.error("Failed to save chat");
+        }
+      }
+    },
+    experimental_telemetry: {
+      isEnabled: true,
+      functionId: "stream-text",
+    },
   });
-
-  // `result`'u diziye dönüştürme
-  const resultMessages = Array.isArray(result) ? result : [result];
-
-  // Sonuçları kaydetme işlemi
-  if (session.user && session.user.id) {
-    try {
-      await saveChat({
-        id,
-        messages: [...coreMessages, ...resultMessages],
-        userId: session.user.id,
-      });
-    } catch (error) {
-      console.error("Failed to save chat");
-    }
-  }
 
   return result.toDataStreamResponse({});
 }
