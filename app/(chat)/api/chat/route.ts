@@ -45,14 +45,13 @@ Here are your key responsibilities:
             body: JSON.stringify({
               model: "llama-3.1-sonar-small-128k-online",
               messages: [
-                { role: "system", content: "Be precise and concise." },
+                { role: "system", content: "YOU ARE THE GOD OF FOOTBALL AND YOU KNOW EVERYTHING!!!" },
                 { role: "user", content: coreMessages } // Burada query kullanıyoruz
               ],
               max_tokens: "Optional",
               temperature: 0.2,
               top_p: 0.9,
               return_citations: true,
-              search_domain_filter: ["perplexity.ai"],
               return_images: false,
               return_related_questions: false,
               search_recency_filter: "month",
