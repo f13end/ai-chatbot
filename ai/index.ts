@@ -9,6 +9,6 @@ const perplexity = openai({
 });
 
 export const customModel = wrapLanguageModel({
-  model: perplexity('llama-3.1-sonar-small-128k-online'),
+  model: perplexity('llama-3-sonar-large-32k-online'),
   middleware: customMiddleware,
 });
