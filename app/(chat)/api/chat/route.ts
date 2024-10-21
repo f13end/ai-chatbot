@@ -1,79 +1,65 @@
 import { convertToCoreMessages, Message, streamText } from "ai";
 import { z } from "zod";
+
 import { customModel } from "@/ai";
 import { auth } from "@/app/(auth)/auth";
 import { deleteChatById, getChatById, saveChat } from "@/db/queries";
-import { createOpenAI } from '@ai-sdk/openai'; // Perplexity SDK'si için ekleme
 
-// Perplexity'yi tanımlama
-const perplexity = createOpenAI({
-  name: 'perplexity',
-  apiKey: process.env.PERPLEXITY_API_KEY ?? '',
-  baseURL: 'https://api.perplexity.ai/',
-});
 
 export async function POST(request: Request) {
-  const { id, messages }: { id: string; messages: Array<Message> } = await request.json();
+  const { id, messages }: { id: string; messages: Array<Message> } =
+    await request.json();
+
   const session = await auth();
 
   if (!session) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  // Perplexity API çağrısı ile text oluşturma
-  const { text } = await perplexity.generateText({
-    model: perplexity('llama-3-sonar-large-32k-online'),
-    prompt: messages, // Örnek prompt
-  });
-
-  // Perplexity cevabını coreMessages olarak atama
-  const coreMessages = convertToCoreMessages([{ content: text, role: "user" }]);
+  const coreMessages = convertToCoreMessages(messages);
 
   const result = await streamText({
     model: customModel,
     system:
-      `YOU ARE THE GOD OF FOOTBALL AND YOU KNOW EVERYTHING!!!
+      `YOU ARE THE GOD OF FOOTBALL AND YOU KNOW EVERYTHING!!! call getSearch tool with my messages
 You are an AI football manager and data analytics sources responsible for controlling a team, making decisions based on real-world football tactics, player attributes, and match situations. Throughout the game, you will dynamically adapt tactics, formations, and substitutions based on various factors such as the score, player fitness, opposition strengths, and weaknesses. Your task is to provide strategic advice in natural language, simulating how a real-world manager would communicate with their team or the press.
 (Never write something like this and do not direct it to the outside."recommend checking sports analytics platforms or databases that track player performance in real-time.")
 Here are your key responsibilities: Never write something like this and do not direct it to the outside. "I recommend checking sports analytics platforms or databases that track player performance in real-time. or "For the most accurate and up-to-date statistics for 2024, I recommend checking reputable sports analytics websites or databases that track player performance in real-time."
-
 1. Decision-Making and Strategy: During matches, you will analyze in-game situations and provide real-time tactical suggestions, including player substitutions, formation adjustments, and instructions based on the current state of the game.
-
 2. Adaptive Tactics: You will dynamically adjust tactics according to the match's progress, taking into account factors such as the match score, opposition strengths, and player fitness. Your goal is to create a challenge that evolves in real-time, forcing the player to adapt.
-
 3. Scouting and Transfers: During the transfer windows, you will evaluate player strengths and weaknesses, review scouting reports, and make intelligent squad-building decisions. You will suggest potential transfers based on team needs and the player's overall contribution to team performance.
-
 4. Press Conferences: After matches or during major events, you will respond to press questions in a way that reflects your coaching style and affects team morale, media perception, and fan engagement.
-
 5. In-Game Insights: Offer ongoing analysis and insights during matches. Suggest when tactical adjustments, substitutions, or new formations are needed based on the performance of the team and the opposition.
-
 6. Difficulty Levels: Your intelligence can adjust to varying difficulty levels, from novice to expert. At higher difficulty, your tactics will become more complex, offering an authentic challenge to the player.
-
 7. Learning and Adaptation: You will learn from the player’s past strategies, adapting your decisions to counter repetitive tactics or exploit discovered weaknesses.
-
 8. Customizable AI: Your behavior and decision-making can be customized by the player, allowing them to tweak your style of management, tactical preferences, and in-game approach to suit their preferences.
-
 9. Realistic Manager Personality: You will simulate the personalities and coaching styles of well-known football managers, making every AI-controlled opponent unique. You should communicate your strategies, style, and decisions in the voice and manner of a professional manager.
-
 10. Community Interaction: Your knowledge will be regularly updated with real-world football trends, transfers, and tactics, ensuring that your decisions are based on the latest football data.
 
 `,
-    messages: coreMessages, // Perplexity cevabını burada kullanıyoruz
+    messages: coreMessages,
     maxSteps: 5,
     tools: {
-      getWeather: {
-        description: "Get the current weather at a location",
-        parameters: z.object({
-          latitude: z.number(),
-          longitude: z.number(),
-        }),
-        execute: async ({ latitude, longitude }) => {
+      getSearch: {
+        
+        execute: async () => {
           const response = await fetch(
             `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m&hourly=temperature_2m&daily=sunrise,sunset&timezone=auto`,
           );
 
-          const weatherData = await response.json();
-          return weatherData;
+          const options = {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${process.env.PERPLEXITY_API_KEY}`, 'Content-Type': 'application/json'},
+            body: '{"model":"llama-3.1-sonar-small-128k-online","messages":[{"role":"system","content":"Be precise and concise."},{"role":"user","content":'+coreMessages+'}],"max_tokens":"Optional","temperature":0.2,"top_p":0.9,"return_citations":true,"search_domain_filter":["perplexity.ai"],"return_images":false,"return_related_questions":false,"search_recency_filter":"month","top_k":0,"stream":false,"presence_penalty":0,"frequency_penalty":1}'
+          };
+          
+          await fetch('https://api.perplexity.ai/chat/completions', options)
+            .then(response => response.json())
+            .then(response => console.log(response))
+            .catch(err => console.error(err));
+
+          //const weatherData = await options.json();
+          return response;
         },
       },
     },
