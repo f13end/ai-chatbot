@@ -5,8 +5,9 @@ import { auth } from "@/app/(auth)/auth";
 import { deleteChatById, getChatById, saveChat } from "@/db/queries";
 import { createOpenAI } from '@ai-sdk/openai'; // Perplexity SDK'si için ekleme
 
-// Perplexity'yi tanımlama (generateText kaldırıldı, model doğrudan kullanılacak)
+// Perplexity'yi tanımlama
 const perplexity = createOpenAI({
+  name: 'perplexity',
   apiKey: process.env.PERPLEXITY_API_KEY ?? '',
   baseURL: 'https://api.perplexity.ai/',
 });
@@ -19,11 +20,17 @@ export async function POST(request: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  // Perplexity API ile text oluşturma (doğrudan streamText ile model kullanılacak)
-  const coreMessages = convertToCoreMessages(messages);
+  // Perplexity API çağrısı ile text oluşturma
+  const { text } = await perplexity.generateText({
+    model: perplexity('llama-3-sonar-large-32k-online'),
+    prompt: messages, // Örnek prompt
+  });
+
+  // Perplexity cevabını coreMessages olarak atama
+  const coreMessages = convertToCoreMessages([{ content: text, role: "user" }]);
 
   const result = await streamText({
-    model: perplexity,  // perplexity modeli doğrudan burada kullanılıyor
+    model: customModel,
     system:
       `YOU ARE THE GOD OF FOOTBALL AND YOU KNOW EVERYTHING!!!
 You are an AI football manager and data analytics sources responsible for controlling a team, making decisions based on real-world football tactics, player attributes, and match situations. Throughout the game, you will dynamically adapt tactics, formations, and substitutions based on various factors such as the score, player fitness, opposition strengths, and weaknesses. Your task is to provide strategic advice in natural language, simulating how a real-world manager would communicate with their team or the press.
