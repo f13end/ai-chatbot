@@ -1,22 +1,33 @@
 import { convertToCoreMessages, Message, streamText } from "ai";
 import { z } from "zod";
-
 import { customModel } from "@/ai";
 import { auth } from "@/app/(auth)/auth";
 import { deleteChatById, getChatById, saveChat } from "@/db/queries";
+import { createOpenAI } from '@ai-sdk/openai'; // Perplexity SDK'si için ekleme
 
+// Perplexity'yi tanımlama
+const perplexity = createOpenAI({
+  name: 'perplexity',
+  apiKey: process.env.PERPLEXITY_API_KEY ?? '',
+  baseURL: 'https://api.perplexity.ai/',
+});
 
 export async function POST(request: Request) {
-  const { id, messages }: { id: string; messages: Array<Message> } =
-    await request.json();
-
+  const { id, messages }: { id: string; messages: Array<Message> } = await request.json();
   const session = await auth();
 
   if (!session) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const coreMessages = convertToCoreMessages(messages);
+  // Perplexity API çağrısı ile text oluşturma
+  const { text } = await perplexity.generateText({
+    model: perplexity('llama-3-sonar-large-32k-online'),
+    prompt: 'Provide a football analysis based on the latest match data.', // Örnek prompt
+  });
+
+  // Perplexity cevabını coreMessages olarak atama
+  const coreMessages = convertToCoreMessages([{ content: text, role: "assistant" }]);
 
   const result = await streamText({
     model: customModel,
@@ -47,7 +58,7 @@ Here are your key responsibilities: Never write something like this and do not d
 10. Community Interaction: Your knowledge will be regularly updated with real-world football trends, transfers, and tactics, ensuring that your decisions are based on the latest football data.
 
 `,
-    messages: coreMessages,
+    messages: coreMessages, // Perplexity cevabını burada kullanıyoruz
     maxSteps: 5,
     tools: {
       getWeather: {
