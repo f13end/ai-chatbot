@@ -33,7 +33,7 @@ Here are your key responsibilities:
       getSearch: {
         description: "Perform a search query", // Tanım ekleyelim
         parameters: z.object({
-          query: coreMessages, // Parametre tanımlaması
+          query: z.string(), // Sadece bir string tanımlayın
         }),
         execute: async ({ query }) => {
           const options = {
@@ -46,12 +46,13 @@ Here are your key responsibilities:
               model: "llama-3.1-sonar-small-128k-online",
               messages: [
                 { role: "system", content: "Be precise and concise." },
-                { role: "user", content: query }
+                { role: "user", content: coreMessages } // Burada query kullanıyoruz
               ],
               max_tokens: "Optional",
               temperature: 0.2,
               top_p: 0.9,
               return_citations: true,
+              search_domain_filter: ["perplexity.ai"],
               return_images: false,
               return_related_questions: false,
               search_recency_filter: "month",
