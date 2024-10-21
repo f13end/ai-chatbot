@@ -2,7 +2,7 @@ import { openai } from "@ai-sdk/openai";
 import { experimental_wrapLanguageModel as wrapLanguageModel } from "ai";
 import { customMiddleware } from "./custom-middleware";
 
-const perplexity = openai({
+export const perplexity = openai({
   name: 'perplexity',
   apiKey: process.env.PERPLEXITY_API_KEY ?? '',
   baseURL: 'https://api.perplexity.ai/',
