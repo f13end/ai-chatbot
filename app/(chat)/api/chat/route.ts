@@ -7,7 +7,6 @@ import { createOpenAI } from '@ai-sdk/openai'; // Perplexity SDK'si için ekleme
 
 // Perplexity'yi tanımlama
 const perplexity = createOpenAI({
-  name: 'perplexity',
   apiKey: process.env.PERPLEXITY_API_KEY ?? '',
   baseURL: 'https://api.perplexity.ai/',
 });
